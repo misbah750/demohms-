@@ -58,7 +58,7 @@ export function isToday(date: string): boolean {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Status helpers
+// Status color maps
 // ──────────────────────────────────────────────────────────────
 export const appointmentStatusColors: Record<string, string> = {
   scheduled: "bg-blue-500/20 text-blue-400 border-blue-500/30",
@@ -78,7 +78,7 @@ export const invoiceStatusColors: Record<string, string> = {
 };
 
 // ──────────────────────────────────────────────────────────────
-// Misc
+// Misc helpers
 // ──────────────────────────────────────────────────────────────
 export function getInitials(name: string): string {
   return name
@@ -100,14 +100,16 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
 }
 
 export function generateTimeSlots(
-  startHour: number = 9,
-  endHour: number = 18,
-  intervalMinutes: number = 30
+  startHour = 9,
+  endHour = 18,
+  intervalMinutes = 30
 ): string[] {
   const slots: string[] = [];
   for (let h = startHour; h < endHour; h++) {
     for (let m = 0; m < 60; m += intervalMinutes) {
-      slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+      slots.push(
+        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+      );
     }
   }
   return slots;

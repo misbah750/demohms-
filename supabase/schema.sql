@@ -20,16 +20,6 @@ CREATE TABLE IF NOT EXISTS public.clinics (
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE public.clinics ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Clinic members can view their clinic"
-  ON public.clinics FOR SELECT
-  USING (id IN (SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid()));
-
-CREATE POLICY "Clinic owners can update their clinic"
-  ON public.clinics FOR UPDATE
-  USING (owner_id = auth.uid());
-
 -- ────────────────────────────────────────────────────────────────
 -- 2. PROFILES (extends auth.users)
 -- ────────────────────────────────────────────────────────────────
@@ -42,40 +32,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   clinic_id   UUID REFERENCES public.clinics(id) ON DELETE CASCADE,
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
-
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view their own profile"
-  ON public.profiles FOR SELECT
-  USING (user_id = auth.uid());
-
-CREATE POLICY "Users can update their own profile"
-  ON public.profiles FOR UPDATE
-  USING (user_id = auth.uid());
-
-CREATE POLICY "Admins can view all profiles in clinic"
-  ON public.profiles FOR SELECT
-  USING (
-    clinic_id IN (
-      SELECT clinic_id FROM public.profiles
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
-
--- Auto-create profile on signup
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (user_id, full_name)
-  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email));
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- ────────────────────────────────────────────────────────────────
 -- 3. PATIENTS
@@ -94,17 +50,6 @@ CREATE TABLE IF NOT EXISTS public.patients (
   updated_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_patients_clinic ON public.patients(clinic_id);
-CREATE INDEX idx_patients_name   ON public.patients(name);
-
-ALTER TABLE public.patients ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Clinic staff can manage patients"
-  ON public.patients FOR ALL
-  USING (
-    clinic_id IN (SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid())
-  );
-
 -- ────────────────────────────────────────────────────────────────
 -- 4. DOCTORS
 -- ────────────────────────────────────────────────────────────────
@@ -119,23 +64,6 @@ CREATE TABLE IF NOT EXISTS public.doctors (
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_doctors_clinic ON public.doctors(clinic_id);
-
-ALTER TABLE public.doctors ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Clinic staff can view doctors"
-  ON public.doctors FOR SELECT
-  USING (clinic_id IN (SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid()));
-
-CREATE POLICY "Admins can manage doctors"
-  ON public.doctors FOR ALL
-  USING (
-    clinic_id IN (
-      SELECT clinic_id FROM public.profiles
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
-
 -- ────────────────────────────────────────────────────────────────
 -- 5. SERVICES
 -- ────────────────────────────────────────────────────────────────
@@ -149,23 +77,6 @@ CREATE TABLE IF NOT EXISTS public.services (
   downtime          TEXT,
   created_at        TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX idx_services_clinic ON public.services(clinic_id);
-
-ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Clinic staff can view services"
-  ON public.services FOR SELECT
-  USING (clinic_id IN (SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid()));
-
-CREATE POLICY "Admins can manage services"
-  ON public.services FOR ALL
-  USING (
-    clinic_id IN (
-      SELECT clinic_id FROM public.profiles
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
 
 -- ────────────────────────────────────────────────────────────────
 -- 6. APPOINTMENTS
@@ -184,18 +95,6 @@ CREATE TABLE IF NOT EXISTS public.appointments (
   updated_at        TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_appointments_clinic  ON public.appointments(clinic_id);
-CREATE INDEX idx_appointments_date    ON public.appointments(appointment_date);
-CREATE INDEX idx_appointments_patient ON public.appointments(patient_id);
-CREATE INDEX idx_appointments_doctor  ON public.appointments(doctor_id);
-CREATE INDEX idx_appointments_status  ON public.appointments(status);
-
-ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Clinic staff can manage appointments"
-  ON public.appointments FOR ALL
-  USING (clinic_id IN (SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid()));
-
 -- ────────────────────────────────────────────────────────────────
 -- 7. TREATMENTS
 -- ────────────────────────────────────────────────────────────────
@@ -210,17 +109,6 @@ CREATE TABLE IF NOT EXISTS public.treatments (
   after_photo_url  TEXT,
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
-
-ALTER TABLE public.treatments ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Clinic staff can manage treatments"
-  ON public.treatments FOR ALL
-  USING (
-    appointment_id IN (
-      SELECT id FROM public.appointments
-      WHERE clinic_id IN (SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid())
-    )
-  );
 
 -- ────────────────────────────────────────────────────────────────
 -- 8. INVOICES
@@ -241,16 +129,6 @@ CREATE TABLE IF NOT EXISTS public.invoices (
   updated_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_invoices_clinic   ON public.invoices(clinic_id);
-CREATE INDEX idx_invoices_patient  ON public.invoices(patient_id);
-CREATE INDEX idx_invoices_status   ON public.invoices(status);
-
-ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Clinic staff can manage invoices"
-  ON public.invoices FOR ALL
-  USING (clinic_id IN (SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid()));
-
 -- ────────────────────────────────────────────────────────────────
 -- 9. INVENTORY
 -- ────────────────────────────────────────────────────────────────
@@ -265,14 +143,6 @@ CREATE TABLE IF NOT EXISTS public.inventory (
   created_at     TIMESTAMPTZ DEFAULT NOW(),
   updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX idx_inventory_clinic ON public.inventory(clinic_id);
-
-ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Clinic staff can manage inventory"
-  ON public.inventory FOR ALL
-  USING (clinic_id IN (SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid()));
 
 -- ────────────────────────────────────────────────────────────────
 -- 10. PACKAGES
@@ -289,21 +159,6 @@ CREATE TABLE IF NOT EXISTS public.packages (
   created_at        TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE public.packages ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Clinic staff can view packages"
-  ON public.packages FOR SELECT
-  USING (clinic_id IN (SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid()));
-
-CREATE POLICY "Admins can manage packages"
-  ON public.packages FOR ALL
-  USING (
-    clinic_id IN (
-      SELECT clinic_id FROM public.profiles
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
-
 -- ────────────────────────────────────────────────────────────────
 -- 11. PATIENT PACKAGES
 -- ────────────────────────────────────────────────────────────────
@@ -315,17 +170,6 @@ CREATE TABLE IF NOT EXISTS public.patient_packages (
   expires_at        DATE NOT NULL,
   created_at        TIMESTAMPTZ DEFAULT NOW()
 );
-
-ALTER TABLE public.patient_packages ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Clinic staff can manage patient packages"
-  ON public.patient_packages FOR ALL
-  USING (
-    patient_id IN (
-      SELECT id FROM public.patients
-      WHERE clinic_id IN (SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid())
-    )
-  );
 
 -- ────────────────────────────────────────────────────────────────
 -- 12. FOLLOW-UPS
@@ -341,23 +185,232 @@ CREATE TABLE IF NOT EXISTS public.follow_ups (
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_follow_ups_patient ON public.follow_ups(patient_id);
-CREATE INDEX idx_follow_ups_date    ON public.follow_ups(scheduled_date);
+-- ────────────────────────────────────────────────────────────────
+-- INDEXES
+-- ────────────────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_patients_clinic ON public.patients(clinic_id);
+CREATE INDEX IF NOT EXISTS idx_patients_name   ON public.patients(name);
 
+CREATE INDEX IF NOT EXISTS idx_doctors_clinic ON public.doctors(clinic_id);
+
+CREATE INDEX IF NOT EXISTS idx_services_clinic ON public.services(clinic_id);
+
+CREATE INDEX IF NOT EXISTS idx_appointments_clinic  ON public.appointments(clinic_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_date    ON public.appointments(appointment_date);
+CREATE INDEX IF NOT EXISTS idx_appointments_patient ON public.appointments(patient_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_doctor  ON public.appointments(doctor_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_status  ON public.appointments(status);
+
+CREATE INDEX IF NOT EXISTS idx_invoices_clinic   ON public.invoices(clinic_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_patient  ON public.invoices(patient_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status   ON public.invoices(status);
+
+CREATE INDEX IF NOT EXISTS idx_inventory_clinic ON public.inventory(clinic_id);
+
+CREATE INDEX IF NOT EXISTS idx_follow_ups_patient ON public.follow_ups(patient_id);
+CREATE INDEX IF NOT EXISTS idx_follow_ups_date    ON public.follow_ups(scheduled_date);
+
+-- ────────────────────────────────────────────────────────────────
+-- SECURITY DEFINER HELPER FUNCTIONS (Bypasses RLS to avoid recursion)
+-- ────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.get_user_clinic_id()
+RETURNS UUID AS $$
+  SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.get_user_role()
+RETURNS TEXT AS $$
+  SELECT role FROM public.profiles WHERE user_id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER;
+
+-- ────────────────────────────────────────────────────────────────
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- ────────────────────────────────────────────────────────────────
+
+-- 1. CLINICS
+ALTER TABLE public.clinics ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clinic members can view their clinic" ON public.clinics;
+DROP POLICY IF EXISTS "Clinic owners can update their clinic" ON public.clinics;
+DROP POLICY IF EXISTS "Authenticated users can create a clinic" ON public.clinics;
+
+CREATE POLICY "Clinic members can view their clinic"
+  ON public.clinics FOR SELECT
+  USING (id = public.get_user_clinic_id());
+
+CREATE POLICY "Clinic owners can update their clinic"
+  ON public.clinics FOR UPDATE
+  USING (owner_id = auth.uid());
+
+-- Allow any authenticated user to create their own clinic (used during signup)
+CREATE POLICY "Authenticated users can create a clinic"
+  ON public.clinics FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL);
+
+-- 2. PROFILES
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can view all profiles in clinic" ON public.profiles;
+DROP POLICY IF EXISTS "System trigger can insert profiles" ON public.profiles;
+
+CREATE POLICY "Users can view their own profile"
+  ON public.profiles FOR SELECT
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Users can update their own profile"
+  ON public.profiles FOR UPDATE
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Admins can view all profiles in clinic"
+  ON public.profiles FOR SELECT
+  USING (
+    clinic_id = public.get_user_clinic_id() AND public.get_user_role() = 'admin'
+  );
+
+-- Allow users to insert their own profile (needed if trigger doesn't fire or for manual signup flow)
+CREATE POLICY "Users can insert their own profile"
+  ON public.profiles FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+-- 3. PATIENTS
+ALTER TABLE public.patients ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clinic staff can manage patients" ON public.patients;
+
+CREATE POLICY "Clinic staff can manage patients"
+  ON public.patients FOR ALL
+  USING (
+    clinic_id = public.get_user_clinic_id()
+  );
+
+-- 4. DOCTORS
+ALTER TABLE public.doctors ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clinic staff can view doctors" ON public.doctors;
+DROP POLICY IF EXISTS "Admins can manage doctors" ON public.doctors;
+
+CREATE POLICY "Clinic staff can view doctors"
+  ON public.doctors FOR SELECT
+  USING (clinic_id = public.get_user_clinic_id());
+
+CREATE POLICY "Admins can manage doctors"
+  ON public.doctors FOR ALL
+  USING (
+    clinic_id = public.get_user_clinic_id() AND public.get_user_role() = 'admin'
+  );
+
+-- 5. SERVICES
+ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clinic staff can view services" ON public.services;
+DROP POLICY IF EXISTS "Admins can manage services" ON public.services;
+
+CREATE POLICY "Clinic staff can view services"
+  ON public.services FOR SELECT
+  USING (clinic_id = public.get_user_clinic_id());
+
+CREATE POLICY "Admins can manage services"
+  ON public.services FOR ALL
+  USING (
+    clinic_id = public.get_user_clinic_id() AND public.get_user_role() = 'admin'
+  );
+
+-- 6. APPOINTMENTS
+ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clinic staff can manage appointments" ON public.appointments;
+
+CREATE POLICY "Clinic staff can manage appointments"
+  ON public.appointments FOR ALL
+  USING (clinic_id = public.get_user_clinic_id());
+
+-- 7. TREATMENTS
+ALTER TABLE public.treatments ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clinic staff can manage treatments" ON public.treatments;
+
+CREATE POLICY "Clinic staff can manage treatments"
+  ON public.treatments FOR ALL
+  USING (
+    appointment_id IN (
+      SELECT id FROM public.appointments
+      WHERE clinic_id = public.get_user_clinic_id()
+    )
+  );
+
+-- 8. INVOICES
+ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clinic staff can manage invoices" ON public.invoices;
+
+CREATE POLICY "Clinic staff can manage invoices"
+  ON public.invoices FOR ALL
+  USING (clinic_id = public.get_user_clinic_id());
+
+-- 9. INVENTORY
+ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clinic staff can manage inventory" ON public.inventory;
+
+CREATE POLICY "Clinic staff can manage inventory"
+  ON public.inventory FOR ALL
+  USING (clinic_id = public.get_user_clinic_id());
+
+-- 10. PACKAGES
+ALTER TABLE public.packages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clinic staff can view packages" ON public.packages;
+DROP POLICY IF EXISTS "Admins can manage packages" ON public.packages;
+DROP POLICY IF EXISTS "Clinic staff can manage packages" ON public.packages;
+
+CREATE POLICY "Clinic staff can view packages"
+  ON public.packages FOR SELECT
+  USING (clinic_id = public.get_user_clinic_id());
+
+-- Allow all clinic staff (not just admins) to manage packages so seed/create works
+CREATE POLICY "Clinic staff can manage packages"
+  ON public.packages FOR ALL
+  USING (clinic_id = public.get_user_clinic_id())
+  WITH CHECK (clinic_id = public.get_user_clinic_id());
+
+-- 11. PATIENT PACKAGES
+ALTER TABLE public.patient_packages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clinic staff can manage patient packages" ON public.patient_packages;
+
+CREATE POLICY "Clinic staff can manage patient packages"
+  ON public.patient_packages FOR ALL
+  USING (
+    patient_id IN (
+      SELECT id FROM public.patients
+      WHERE clinic_id = public.get_user_clinic_id()
+    )
+  );
+
+-- 12. FOLLOW-UPS
 ALTER TABLE public.follow_ups ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Clinic staff can manage follow-ups" ON public.follow_ups;
 
 CREATE POLICY "Clinic staff can manage follow-ups"
   ON public.follow_ups FOR ALL
   USING (
     patient_id IN (
       SELECT id FROM public.patients
-      WHERE clinic_id IN (SELECT clinic_id FROM public.profiles WHERE user_id = auth.uid())
+      WHERE clinic_id = public.get_user_clinic_id()
     )
   );
 
 -- ────────────────────────────────────────────────────────────────
--- Updated_at triggers
+-- TRIGGERS AND FUNCTIONS
 -- ────────────────────────────────────────────────────────────────
+
+-- 1. Auto-create profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (user_id, full_name)
+  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 2. Updated_at triggers
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -366,18 +419,22 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS set_patients_updated_at ON public.patients;
 CREATE TRIGGER set_patients_updated_at
   BEFORE UPDATE ON public.patients
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
+DROP TRIGGER IF EXISTS set_appointments_updated_at ON public.appointments;
 CREATE TRIGGER set_appointments_updated_at
   BEFORE UPDATE ON public.appointments
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
+DROP TRIGGER IF EXISTS set_invoices_updated_at ON public.invoices;
 CREATE TRIGGER set_invoices_updated_at
   BEFORE UPDATE ON public.invoices
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
+DROP TRIGGER IF EXISTS set_inventory_updated_at ON public.inventory;
 CREATE TRIGGER set_inventory_updated_at
   BEFORE UPDATE ON public.inventory
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
