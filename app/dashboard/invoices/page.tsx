@@ -148,7 +148,12 @@ export default function InvoicesPage() {
           { name: "Sarah Ahmed", phone: "0300-1234567", email: "sarah@example.com", age: 28, gender: "female", clinic_id: clinicId },
           { name: "Zara Khan", phone: "0321-7654321", email: "zara@example.com", age: 35, gender: "female", clinic_id: clinicId },
           { name: "Amna Siddiqui", phone: "0333-1112223", email: "amna@example.com", age: 42, gender: "female", clinic_id: clinicId },
-          { name: "Hina Baig", phone: "0345-4445556", email: "hina@example.com", age: 31, gender: "female", clinic_id: clinicId }
+          { name: "Hina Baig", phone: "0345-4445556", email: "hina@example.com", age: 31, gender: "female", clinic_id: clinicId },
+          { name: "Ali Hassan", phone: "0311-9998887", email: "ali@example.com", age: 45, gender: "male", clinic_id: clinicId },
+          { name: "Usman Farooq", phone: "0322-5556664", email: "usman@example.com", age: 38, gender: "male", clinic_id: clinicId },
+          { name: "Nadia Malik", phone: "0312-3334445", email: "nadia@example.com", age: 29, gender: "female", clinic_id: clinicId },
+          { name: "Bilal Sheikh", phone: "0345-1231230", email: "bilal@example.com", age: 33, gender: "male", clinic_id: clinicId },
+          { name: "Farah Naz", phone: "0301-7778889", email: "farah@example.com", age: 27, gender: "female", clinic_id: clinicId }
         ];
 
         const { data: insertedPatients, error: patientErr } = await clientSupabase
@@ -164,50 +169,23 @@ export default function InvoicesPage() {
         throw new Error("Failed to prepare patients for seeding");
       }
 
+      // Ensure we have enough patients returned/present
+      const p = (name: string) => patients!.find(x => x.name === name)?.id || patients![0].id;
+
       // 3. Create mock invoices with different statuses
       const mockInvoices = [
-        {
-          clinic_id: clinicId,
-          patient_id: patients[0].id,
-          subtotal: 15000,
-          tax: 0,
-          total: 15000,
-          paid_amount: 15000,
-          status: "paid",
-          payment_method: "cash",
-          notes: "Settled in full at front desk."
-        },
-        {
-          clinic_id: clinicId,
-          patient_id: patients[1].id,
-          subtotal: 25000,
-          tax: 2500,
-          total: 27500,
-          paid_amount: 0,
-          status: "pending",
-          notes: "Awaiting insurance verification."
-        },
-        {
-          clinic_id: clinicId,
-          patient_id: patients[2].id,
-          subtotal: 18000,
-          tax: 0,
-          total: 18000,
-          paid_amount: 10000,
-          status: "partial",
-          payment_method: "card",
-          notes: "Client paid deposit. Balance due next session."
-        },
-        {
-          clinic_id: clinicId,
-          patient_id: patients[3].id,
-          subtotal: 22000,
-          tax: 0,
-          total: 22000,
-          paid_amount: 0,
-          status: "overdue",
-          notes: "Follow-up call scheduled."
-        }
+        { clinic_id: clinicId, patient_id: p("Sarah Ahmed"), subtotal: 15000, tax: 0, total: 15000, paid_amount: 15000, status: "paid", payment_method: "cash", notes: "Settled in full at front desk." },
+        { clinic_id: clinicId, patient_id: p("Zara Khan"), subtotal: 25000, tax: 2500, total: 27500, paid_amount: 0, status: "pending", notes: "Awaiting insurance verification." },
+        { clinic_id: clinicId, patient_id: p("Amna Siddiqui"), subtotal: 18000, tax: 0, total: 18000, paid_amount: 10000, status: "partial", payment_method: "card", notes: "Balance due at next session." },
+        { clinic_id: clinicId, patient_id: p("Hina Baig"), subtotal: 22000, tax: 0, total: 22000, paid_amount: 0, status: "overdue", notes: "Follow-up call scheduled." },
+        { clinic_id: clinicId, patient_id: p("Ali Hassan"), subtotal: 35000, tax: 3500, total: 38500, paid_amount: 38500, status: "paid", payment_method: "bank_transfer", notes: "Annual wellness package — full payment." },
+        { clinic_id: clinicId, patient_id: p("Usman Farooq"), subtotal: 9500, tax: 950, total: 10450, paid_amount: 0, status: "pending", notes: "Botox top-up — waiting on approval." },
+        { clinic_id: clinicId, patient_id: p("Sarah Ahmed"), subtotal: 12000, tax: 0, total: 12000, paid_amount: 12000, status: "paid", payment_method: "online", notes: "Physiotherapy — 4th session." },
+        { clinic_id: clinicId, patient_id: p("Nadia Malik"), subtotal: 48000, tax: 4800, total: 52800, paid_amount: 25000, status: "partial", payment_method: "cash", notes: "Skin laser — 3 sessions paid upfront." },
+        { clinic_id: clinicId, patient_id: p("Bilal Sheikh"), subtotal: 6500, tax: 0, total: 6500, paid_amount: 0, status: "overdue", notes: "PRP hair treatment — overdue 15 days." },
+        { clinic_id: clinicId, patient_id: p("Ali Hassan"), subtotal: 19500, tax: 1950, total: 21450, paid_amount: 21450, status: "paid", payment_method: "card", notes: "Dental deep cleaning + X-rays." },
+        { clinic_id: clinicId, patient_id: p("Farah Naz"), subtotal: 8000, tax: 800, total: 8800, paid_amount: 0, status: "cancelled", notes: "Patient cancelled appointment." },
+        { clinic_id: clinicId, patient_id: p("Usman Farooq"), subtotal: 32000, tax: 0, total: 32000, paid_amount: 32000, status: "paid", payment_method: "insurance", notes: "Insurance claim processed successfully." }
       ];
 
       const { error: invoiceErr } = await clientSupabase
