@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: profile } = await supabase.from("profiles").select("clinic_id").eq("user_id", user.id).single();
+    const { data: profile } = await (supabase.from("profiles").select("clinic_id").eq("user_id", user.id).single() as any);
     const clinicId = profile?.clinic_id;
 
     const { searchParams } = new URL(request.url);
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: profile } = await supabase.from("profiles").select("clinic_id").eq("user_id", user.id).single();
+    const { data: profile } = await (supabase.from("profiles").select("clinic_id").eq("user_id", user.id).single() as any);
     const clinicId = profile?.clinic_id;
 
     const body = await request.json();

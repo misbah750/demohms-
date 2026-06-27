@@ -89,7 +89,7 @@ export default function RevenueAnalyticsPage() {
             <Tooltip
               contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.07)" }}
               labelStyle={{ color: "#64748b" }}
-              formatter={(v: number) => [formatCurrency(v)]}
+              formatter={(v: any) => [formatCurrency(v)]}
             />
             <Legend wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
             <Area type="monotone" dataKey="revenue" stroke="#0284c7" strokeWidth={2} fill="url(#grad1)" name="Revenue" />
@@ -111,7 +111,7 @@ export default function RevenueAnalyticsPage() {
               <Tooltip
                 contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.07)" }}
                 labelStyle={{ color: "#64748b" }}
-                formatter={(v: number) => [formatCurrency(v), "Revenue"]}
+                formatter={(v: any) => [formatCurrency(v), "Revenue"]}
               />
               <Bar dataKey="revenue" fill="#bae6fd" radius={[0, 4, 4, 0]} />
             </BarChart>
@@ -139,7 +139,7 @@ export default function RevenueAnalyticsPage() {
               <Tooltip
                 contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.07)" }}
                 labelStyle={{ color: "#64748b" }}
-                formatter={(v: number) => [`${v}%`]}
+                formatter={(v: any) => [`${v}%`]}
               />
               <Legend wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
             </PieChart>

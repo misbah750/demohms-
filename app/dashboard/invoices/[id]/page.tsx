@@ -2,13 +2,13 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Printer, FileText, CheckCircle, ShieldAlert, Sparkles, DollarSign } from "lucide-react";
+import { ArrowLeft, Printer, FileText, CheckCircle, ShieldAlert, Sparkles, DollarSign, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Invoice } from "@/lib/types";
 import { toast } from "sonner";
 import { useState } from "react";
 
-const MOCK_PATIENT = { id: "p1", clinic_id: "c1", name: "Sarah Ahmed", phone: "0300-1234567", email: "sarah@example.com", age: 28, gender: "female" as const };
+const MOCK_PATIENT = { id: "p1", clinic_id: "c1", name: "Sarah Ahmed", phone: "0300-1234567", email: "sarah@example.com", age: 28, gender: "female" as const, created_at: "", updated_at: "" };
 const MOCK_SERVICE = { id: "s1", clinic_id: "c1", name: "Botox Treatment (Glabella)", duration_minutes: 30, base_price: 15000 };
 
 const MOCK_INVOICE: Invoice = {

@@ -9,7 +9,7 @@ const DEV_MODE =
   !process.env.NEXT_PUBLIC_SUPABASE_URL ||
   process.env.NEXT_PUBLIC_SUPABASE_URL.includes("your-project-id");
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // ── DEV BYPASS: allow all traffic when Supabase is not yet configured ──
   if (DEV_MODE) {
     // Allow login page in dev mode

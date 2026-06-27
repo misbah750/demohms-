@@ -126,7 +126,7 @@ export default function DashboardPage() {
                 contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.07)" }}
                 labelStyle={{ color: "#64748b" }}
                 itemStyle={{ color: "#0284c7" }}
-                formatter={(v: number) => [formatCurrency(v), "Revenue"]}
+                formatter={(v: any) => [formatCurrency(v), "Revenue"]}
               />
               <Area type="monotone" dataKey="revenue" stroke="#0284c7" strokeWidth={2} fill="url(#revGrad)" />
             </AreaChart>

@@ -9,7 +9,7 @@ const DeductSchema = z.object({
 async function getClinicId(supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const { data: profile } = await supabase.from("profiles").select("clinic_id").eq("user_id", user.id).single();
+  const { data: profile } = await (supabase.from("profiles").select("clinic_id").eq("user_id", user.id).single() as any);
   return profile?.clinic_id ?? null;
 }
 
